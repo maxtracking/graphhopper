@@ -50,7 +50,7 @@ import com.graphhopper.util.shapes.GHPoint;
  */
 public class ShapeFileReaderTest {
 
-    private static final String shapefile = "/data/gis.osm_roads_free_1.shp";
+    private static final String shapefile = "/data/LondonITN_latL.shp";//"/data/gis.osm_roads_free_1.shp";
     private static final String pbf = "/data/malta-latest.osm.pbf";
     private static final String tempOutputDirFromShp = "target/test-db-shp";
     private static final String tempOutputDirFromPbf = "target/test-db-pbf";
@@ -127,7 +127,7 @@ public class ShapeFileReaderTest {
             new File(tempOutputDirFromShp).mkdirs();
             new File(tempOutputDirFromPbf).mkdirs();
 
-            hopperShp = initHopper(new GraphhopperSHP(), shapefile, tempOutputDirFromShp);
+            hopperShp = initHopper(new GraphHopperSHP(0, null), shapefile, tempOutputDirFromShp);
 
             hopperPbf = initHopper(new GraphHopperOSM(), pbf, tempOutputDirFromPbf);
 

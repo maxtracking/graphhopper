@@ -24,6 +24,7 @@ import com.graphhopper.json.GHJson;
 import com.graphhopper.json.GHJsonBuilder;
 import com.graphhopper.json.geo.JsonFeatureCollection;
 import com.graphhopper.reader.osm.GraphHopperOSM;
+import com.graphhopper.reader.shp.GraphHopperSHP;
 import com.graphhopper.routing.lm.LandmarkStorage;
 import com.graphhopper.routing.lm.PrepareLandmarks;
 import com.graphhopper.routing.util.DataFlagEncoder;
@@ -74,31 +75,36 @@ public class DefaultModule extends AbstractModule {
      * @return an initialized GraphHopper instance
      */
     protected GraphHopper createGraphHopper(CmdArgs args) {
-        GraphHopper tmp = new GraphHopperOSM() {
-            @Override
-            protected void loadOrPrepareLM() {
-                if (!getLMFactoryDecorator().isEnabled() || getLMFactoryDecorator().getPreparations().isEmpty())
-                    return;
+        GraphHopper tmp;
+        if (args.get("datareader.file", "").endsWith(".pbf"))
+            tmp = new GraphHopperOSM() {
+                @Override
+                protected void loadOrPrepareLM() {
+                    if (!getLMFactoryDecorator().isEnabled() || getLMFactoryDecorator().getPreparations().isEmpty())
+                        return;
 
-                try {
-                    String location = args.get(Parameters.Landmark.PREPARE + "split_area_location", "");
-                    Reader reader = location.isEmpty() ? new InputStreamReader(LandmarkStorage.class.getResource("map.geo.json").openStream()) : new FileReader(location);
-                    JsonFeatureCollection jsonFeatureCollection = new GHJsonBuilder().create().fromJson(reader, JsonFeatureCollection.class);
-                    if (!jsonFeatureCollection.getFeatures().isEmpty()) {
-                        SpatialRuleLookup ruleLookup = new SpatialRuleLookupBuilder().build("country",
-                                new SpatialRuleLookupBuilder.SpatialRuleDefaultFactory(), jsonFeatureCollection,
-                                getGraphHopperStorage().getBounds(), 0.1, true);
-                        for (PrepareLandmarks prep : getLMFactoryDecorator().getPreparations()) {
-                            prep.setSpatialRuleLookup(ruleLookup);
+                    try {
+                        String location = args.get(Parameters.Landmark.PREPARE + "split_area_location", "");
+                        Reader reader = location.isEmpty() ? new InputStreamReader(LandmarkStorage.class.getResource("map.geo.json").openStream()) : new FileReader(location);
+                        JsonFeatureCollection jsonFeatureCollection = new GHJsonBuilder().create().fromJson(reader, JsonFeatureCollection.class);
+                        if (!jsonFeatureCollection.getFeatures().isEmpty()) {
+                            SpatialRuleLookup ruleLookup = new SpatialRuleLookupBuilder().build("country",
+                                    new SpatialRuleLookupBuilder.SpatialRuleDefaultFactory(), jsonFeatureCollection,
+                                    getGraphHopperStorage().getBounds(), 0.1, true);
+                            for (PrepareLandmarks prep : getLMFactoryDecorator().getPreparations()) {
+                                prep.setSpatialRuleLookup(ruleLookup);
+                            }
                         }
+                    } catch (IOException ex) {
+                        logger.error("Problem while reading border map GeoJSON. Skipping this.", ex);
                     }
-                } catch (IOException ex) {
-                    logger.error("Problem while reading border map GeoJSON. Skipping this.", ex);
-                }
 
-                super.loadOrPrepareLM();
-            }
-        }.forServer().init(args);
+                    super.loadOrPrepareLM();
+                }
+            };
+        else
+            tmp = new GraphHopperSHP(1, args);
+        tmp = tmp.forServer().init(args);
 
         String location = args.get("spatial_rules.location", "");
         if (!location.isEmpty()) {

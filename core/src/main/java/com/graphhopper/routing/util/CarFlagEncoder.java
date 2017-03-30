@@ -21,6 +21,7 @@ import com.graphhopper.reader.ReaderRelation;
 import com.graphhopper.reader.ReaderWay;
 import com.graphhopper.util.Helper;
 import com.graphhopper.util.PMap;
+import com.graphhopper.util.shapes.GHPoint;
 
 import java.util.*;
 
@@ -45,7 +46,7 @@ public class CarFlagEncoder extends AbstractFlagEncoder {
      * http://www.itoworld.com/map/124#fullscreen
      * http://wiki.openstreetmap.org/wiki/OSM_tags_for_routing/Maxspeed
      */
-    protected final Map<String, Integer> defaultSpeedMap = new HashMap<String, Integer>();
+    protected final Map<String, Integer> defaultSpeedMap = new HashMap<>();
 
     public CarFlagEncoder() {
         this(5, 5, 0);
@@ -167,9 +168,18 @@ public class CarFlagEncoder extends AbstractFlagEncoder {
                 && highwayValue != "motorway" && highwayValue != "motorway_link") {
             highwayValue = "motorroad";
         }
-        Integer speed = defaultSpeedMap.get(highwayValue);
-        if (speed == null)
-            throw new IllegalStateException(toString() + ", no speed found for: " + highwayValue + ", tags: " + way);
+//        Integer speed = defaultSpeedMap.get(highwayValue);
+//        if (speed == null)
+//            throw new IllegalStateException(toString() + ", no speed found for: " + highwayValue + ", tags: " + way);
+
+		GHPoint point = way.getTag("estimated_center", null);
+        double speed = way.getTag("estimated_speed", (double) -1);//getSpeedForLocation(point);
+        if (speed == -1) {
+            Integer defaultSpeed = defaultSpeedMap.get(highwayValue);
+            if (defaultSpeed == null)
+                throw new IllegalStateException(toString() + ", no speed found for: " + highwayValue + ", tags: " + way);
+            speed = 1.0 * defaultSpeed;
+        }
 
         if (highwayValue.equals("track")) {
             String tt = way.getTag("tracktype");
@@ -235,6 +245,7 @@ public class CarFlagEncoder extends AbstractFlagEncoder {
         return oldRelationFlags;
     }
 
+    // AG: TODO Handle way tags
     @Override
     public long handleWayTags(ReaderWay way, long allowed, long relationFlags) {
         if (!isAccept(allowed))

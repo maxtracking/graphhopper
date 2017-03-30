@@ -56,7 +56,12 @@
             <artifactId>graphhopper-reader-osm</artifactId>
             <version>${project.parent.version}</version>
             <scope>test</scope>
-        </dependency>        
+        </dependency>
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-csv</artifactId>
+            <version>1.4</version>
+        </dependency>
     </dependencies>
     <build>
         <plugins>

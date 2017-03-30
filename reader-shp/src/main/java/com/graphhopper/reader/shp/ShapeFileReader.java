@@ -17,10 +17,16 @@
  */
 package com.graphhopper.reader.shp;
 
-import java.io.File;
-import java.util.HashMap;
-import java.util.Map;
-
+import com.graphhopper.reader.DataReader;
+import com.graphhopper.routing.util.EncodingManager;
+import com.graphhopper.storage.Graph;
+import com.graphhopper.storage.GraphHopperStorage;
+import com.graphhopper.storage.GraphStorage;
+import com.graphhopper.storage.NodeAccess;
+import com.vividsolutions.jts.geom.Coordinate;
+import org.apache.commons.csv.CSVFormat;
+import org.apache.commons.csv.CSVParser;
+import org.apache.commons.csv.CSVRecord;
 import org.geotools.data.DataStore;
 import org.geotools.data.DataStoreFinder;
 import org.geotools.data.FeatureSource;
@@ -29,14 +35,13 @@ import org.geotools.feature.FeatureIterator;
 import org.opengis.feature.simple.SimpleFeature;
 import org.opengis.feature.simple.SimpleFeatureType;
 import org.opengis.filter.Filter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import com.graphhopper.reader.DataReader;
-import com.graphhopper.routing.util.EncodingManager;
-import com.graphhopper.storage.Graph;
-import com.graphhopper.storage.GraphHopperStorage;
-import com.graphhopper.storage.GraphStorage;
-import com.graphhopper.storage.NodeAccess;
-import com.vividsolutions.jts.geom.Coordinate;
+import java.io.File;
+import java.io.FileReader;
+import java.io.IOException;
+import java.util.*;
 
 /**
  * ShapeFileReader takes care of reading a shape file and writing it to a road network graph
@@ -46,16 +51,28 @@ import com.vividsolutions.jts.geom.Coordinate;
  */
 public abstract class ShapeFileReader implements DataReader {
 
+    protected final HashSet<EdgeAddedListener> edgeAddedListeners = new HashSet<>();
+    protected final String speedData;
+    protected final HashMap<String, Double> speedMap = new HashMap<>();
+
+    protected EncodingManager encodingManager;
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(ITNShapeFileReader.class);
+
     private final GraphStorage graphStorage;
     private final NodeAccess nodeAccess;
     protected final Graph graph;
-    protected EncodingManager encodingManager;
 
-    public ShapeFileReader(GraphHopperStorage ghStorage) {
+    public ShapeFileReader(GraphHopperStorage ghStorage, String speedData) {
         this.graphStorage = ghStorage;
         this.graph = ghStorage;
         this.nodeAccess = graph.getNodeAccess();
         this.encodingManager = ghStorage.getEncodingManager();
+        this.speedData = speedData;
+
+        if (this.speedData != null) {
+            loadSpeedData("PeakAm0709MonFri_2");
+        }
     }
 
     @Override
@@ -64,6 +81,11 @@ public abstract class ShapeFileReader implements DataReader {
         processJunctions();
         processRoads();
     }
+
+    public void addListener(EdgeAddedListener l) {
+        edgeAddedListeners.add(l);
+    }
+
 
     abstract void processJunctions();
 
@@ -117,5 +139,36 @@ public abstract class ShapeFileReader implements DataReader {
 
     protected void saveTowerPosition(int nodeId, Coordinate point) {
         nodeAccess.setNode(nodeId, lat(point), lng(point));
+    }
+
+    private void loadSpeedData(String columnName) {
+        CSVParser parser = null;
+        List<CSVRecord> list;
+        try {
+            parser = new CSVParser(new FileReader(speedData), CSVFormat.DEFAULT.withFirstRecordAsHeader());
+            list = parser.getRecords();
+//            list.sort((o1, o2) -> {
+//                float lat1 = Float.parseFloat(o1.get(1));
+//                float lat2 = Float.parseFloat(o2.get(1));
+//                if (lat1 > lat2)
+//                    return 1;
+//                else if (lat1 < lat2)
+//                    return -1;
+//                else
+//                    return 0;
+//            });
+            // Get speeds and convert to KPH (x 1.60934)
+            for( CSVRecord row : list ) {
+                String id = row.get("RoadLinkId");
+                double speed = Double.parseDouble(row.get(columnName)) * 1.60934;
+                if (speedMap.get(id) != null) {
+                    LOGGER.info("Key found: " + id);
+                }
+                speedMap.put(id.substring(4), speed);
+            }
+            LOGGER.info("Number of nodes in speed map : " + speedMap.size());
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 }

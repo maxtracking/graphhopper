@@ -37,10 +37,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.HashSet;
-import java.util.List;
+import java.util.*;
 
 /**
  * OSMShapeFileReader for files present at : http://download.geofabrik.de/ It
@@ -49,7 +46,7 @@ import java.util.List;
  * @author Vikas Veshishth
  * @author Philip Welch
  */
-public class OSMShapeFileReader extends ShapeFileReader {
+public class ITNShapeFileReader extends ShapeFileReader {
     private static final int COORD_STATE_UNKNOWN = 0;
     private static final int COORD_STATE_PILLAR = -2;
     private static final int FIRST_NODE_ID = 1;
@@ -57,11 +54,14 @@ public class OSMShapeFileReader extends ShapeFileReader {
     private File roadsFile;
     private final GHObjectIntHashMap<Coordinate> coordState = new GHObjectIntHashMap<>(1000, 0.7f);
     private final DistanceCalc distCalc = Helper.DIST_EARTH;
-    private static final Logger LOGGER = LoggerFactory.getLogger(OSMShapeFileReader.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(ITNShapeFileReader.class);
     private int nextNodeId = FIRST_NODE_ID;
+    private int totalSpeedsCnt = 0;
 
-    public OSMShapeFileReader(GraphHopperStorage ghStorage, String speedData) {
+    public ITNShapeFileReader(GraphHopperStorage ghStorage, String speedData) {
         super(ghStorage, speedData);
+
+//        LOGGER.info("Number of nodes in speed map : " + speedMap.size());
     }
 
     private List<Coordinate[]> getCoords(Object o) {
@@ -249,7 +249,7 @@ public class OSMShapeFileReader extends ShapeFileReader {
         return null;
     }
 
-//    public interface EdgeAddedListener {
+//    public static interface EdgeAddedListener {
 //        void edgeAdded(ReaderWay way, EdgeIteratorState edge);
 //    }
 
@@ -258,7 +258,7 @@ public class OSMShapeFileReader extends ShapeFileReader {
         EdgeIteratorState edge = graph.edge(fromTower, toTower);
 
         // read the OSM id, should never be null
-        long id = getOSMId(road);
+        long id = getItnId(road);
 
         // Make a temporary ReaderWay object with the properties we need so we
         // can use the enocding manager
@@ -274,6 +274,16 @@ public class OSMShapeFileReader extends ShapeFileReader {
         Object type = road.getAttribute("fclass");
         if (type != null) {
             way.setTag("highway", type.toString());
+        } else {
+            // AG
+            way.setTag("highway", translateHighwayType(Integer.parseInt(road.getAttribute(3).toString())));
+        }
+
+        Double speed = speedMap.get(String.valueOf(id));
+        if (speed != null) {
+            way.setTag("estimated_speed", speed);
+            totalSpeedsCnt++;
+            LOGGER.info(String.format("[%d] Found speed info: [%d] => %f KPH    ", totalSpeedsCnt, id, speed));
         }
 
         // read maxspeed filtering for 0 which for Geofabrik shapefiles appears
@@ -313,6 +323,27 @@ public class OSMShapeFileReader extends ShapeFileReader {
             }
 
             way.setTag("oneway", val);
+        } else {
+            oneway = road.getAttribute(2);
+            if (oneway != null) {
+                String val = oneway.toString().trim().toLowerCase();
+                if (val.equals("0")) {
+                    // both ways
+                    val = "no";
+                } else if (val.equals("-1")) {
+                    // one way against the direction of digitisation
+                    val = "-1";
+                } else if (val.equals("1")) {
+                    // one way Forward in the direction of digitisation
+                    val = "yes";
+                } else {
+                    throw new RuntimeException("Unrecognised value of oneway field \"" + val
+                            + "\" found in road with OSM id " + id);
+                }
+
+                LOGGER.debug("Oneway : ", val);
+                way.setTag("oneway", val);
+            }
         }
 
         // Process the flags using the encoders
@@ -341,8 +372,44 @@ public class OSMShapeFileReader extends ShapeFileReader {
         }
     }
 
-    private long getOSMId(SimpleFeature road) {
-        long id = Long.parseLong(road.getAttribute("osm_id").toString());
-        return id;
+    private long getItnId(SimpleFeature road) {
+        String value = road.getAttribute(1).toString();
+        return Long.parseLong(value.substring(4));
+    }
+
+    private String translateHighwayType(Integer type) {
+        /*
+        3000       Motorway
+        3001       A Road
+        3002       B Road
+        3004       Minor Road
+        3006       Private Road Restricted Access
+        3007       Local Street
+        3008       Private Road Publicly Accessible
+        3009       Alley
+        3010       Footpath
+        3011       Canal Path
+         */
+        Map<Integer, String> roadTypes = new HashMap<Integer, String>()
+        {{
+            put(3000, "motorway");
+            put(3001, "motorway");
+            put(3002, "motorroad");
+            put(3004, "secondary_link");
+            put(3006, "tertiary");
+            put(3007, "residential");
+            put(3008, "tertiary");
+            put(3009, "unclassified");
+            put(3010, "unclassified");
+            put(3011, "unclassified");
+        }};
+
+        String highwayType = roadTypes.get(type);
+        if (highwayType == null) {
+            highwayType = "residential";
+        }
+
+        LOGGER.debug("Highway Type: ", highwayType);
+        return highwayType;
     }
 }

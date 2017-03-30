@@ -21,8 +21,8 @@ import java.util.HashSet;
 
 import com.graphhopper.GraphHopper;
 import com.graphhopper.reader.DataReader;
-import com.graphhopper.reader.shp.OSMShapeFileReader.EdgeAddedListener;
 import com.graphhopper.storage.GraphHopperStorage;
+import com.graphhopper.util.CmdArgs;
 
 /**
  * This class is the main entry point to import from OpenStreetMap shape files similar to GraphHopperOSM which imports
@@ -30,12 +30,24 @@ import com.graphhopper.storage.GraphHopperStorage;
  *
  * @author Phil
  */
-public class GraphhopperSHP extends GraphHopper {
+public class GraphHopperSHP extends GraphHopper {
     private final HashSet<EdgeAddedListener> edgeAddedListeners = new HashSet<>();
+
+    private final int shapeFileType;
+    private final String speedData;
+
+    public GraphHopperSHP(int shapeType, CmdArgs args) {
+        shapeFileType = shapeType;
+        speedData = args.get("speeds.file", null);
+    }
 
     @Override
     protected DataReader createReader(GraphHopperStorage ghStorage) {
-        OSMShapeFileReader reader = new OSMShapeFileReader(ghStorage);
+        ShapeFileReader reader;
+        if (shapeFileType == 0)
+            reader = new OSMShapeFileReader(ghStorage, speedData);
+        else
+            reader = new ITNShapeFileReader(ghStorage, speedData);
         for (EdgeAddedListener l : edgeAddedListeners) {
             reader.addListener(l);
         }
