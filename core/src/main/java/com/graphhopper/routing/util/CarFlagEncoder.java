@@ -174,11 +174,13 @@ public class CarFlagEncoder extends AbstractFlagEncoder {
 
 		GHPoint point = way.getTag("estimated_center", null);
         double speed = way.getTag("estimated_speed", (double) -1);//getSpeedForLocation(point);
-        if (speed == -1) {
-            Integer defaultSpeed = defaultSpeedMap.get(highwayValue);
-            if (defaultSpeed == null)
-                throw new IllegalStateException(toString() + ", no speed found for: " + highwayValue + ", tags: " + way);
-            speed = 1.0 * defaultSpeed;
+        if (speed <= 0) {
+            speed = 0;
+// AG - set speed to 0 when it's not found or 0 in speed data
+//            Integer defaultSpeed = defaultSpeedMap.get(highwayValue);
+//            if (defaultSpeed == null)
+//                throw new IllegalStateException(toString() + ", no speed found for: " + highwayValue + ", tags: " + way);
+//            speed = 1.0 * defaultSpeed;
         }
 
         if (highwayValue.equals("track")) {

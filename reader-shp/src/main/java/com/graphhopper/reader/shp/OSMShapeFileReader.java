@@ -60,8 +60,8 @@ public class OSMShapeFileReader extends ShapeFileReader {
     private static final Logger LOGGER = LoggerFactory.getLogger(OSMShapeFileReader.class);
     private int nextNodeId = FIRST_NODE_ID;
 
-    public OSMShapeFileReader(GraphHopperStorage ghStorage, String speedData) {
-        super(ghStorage, speedData);
+    public OSMShapeFileReader(GraphHopperStorage ghStorage, String speedData, String period) {
+        super(ghStorage, speedData, period);
     }
 
     private List<Coordinate[]> getCoords(Object o) {

@@ -57,13 +57,13 @@ public abstract class ShapeFileReader implements DataReader {
 
     protected EncodingManager encodingManager;
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(ITNShapeFileReader.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(ShapeFileReader.class);
 
     private final GraphStorage graphStorage;
     private final NodeAccess nodeAccess;
     protected final Graph graph;
 
-    public ShapeFileReader(GraphHopperStorage ghStorage, String speedData) {
+    public ShapeFileReader(GraphHopperStorage ghStorage, String speedData, String period) {
         this.graphStorage = ghStorage;
         this.graph = ghStorage;
         this.nodeAccess = graph.getNodeAccess();
@@ -71,7 +71,8 @@ public abstract class ShapeFileReader implements DataReader {
         this.speedData = speedData;
 
         if (this.speedData != null) {
-            loadSpeedData("PeakAm0709MonFri_2");
+            loadSpeedData(period);
+//            loadSpeedData("OffPeak1016MonFri");
         }
     }
 
@@ -157,13 +158,14 @@ public abstract class ShapeFileReader implements DataReader {
 //                else
 //                    return 0;
 //            });
+            double factor = 1;//1.60934;
             // Get speeds and convert to KPH (x 1.60934)
             for( CSVRecord row : list ) {
                 String id = row.get("RoadLinkId");
-                double speed = Double.parseDouble(row.get(columnName)) * 1.60934;
-                if (speedMap.get(id) != null) {
-                    LOGGER.info("Key found: " + id);
-                }
+                double speed = Double.parseDouble(row.get(columnName)) * factor;
+//                if (speedMap.get(id) != null) {
+//                    LOGGER.info("Key found: " + id);
+//                }
                 speedMap.put(id.substring(4), speed);
             }
             LOGGER.info("Number of nodes in speed map : " + speedMap.size());

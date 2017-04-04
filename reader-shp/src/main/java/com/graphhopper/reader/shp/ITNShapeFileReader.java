@@ -58,8 +58,8 @@ public class ITNShapeFileReader extends ShapeFileReader {
     private int nextNodeId = FIRST_NODE_ID;
     private int totalSpeedsCnt = 0;
 
-    public ITNShapeFileReader(GraphHopperStorage ghStorage, String speedData) {
-        super(ghStorage, speedData);
+    public ITNShapeFileReader(GraphHopperStorage ghStorage, String speedData, String period) {
+        super(ghStorage, speedData, period);
 
 //        LOGGER.info("Number of nodes in speed map : " + speedMap.size());
     }
@@ -171,7 +171,6 @@ public class ITNShapeFileReader extends ShapeFileReader {
                             int state = coordState.get(point);
                             if (state >= FIRST_NODE_ID) {
                                 int fromTowerNodeId = coordState.get(startTowerPnt);
-                                int toTowerNodeId = state;
 
                                 // get distance and estimated centres
                                 double distance = getWayLength(startTowerPnt, pillars, point);
@@ -184,7 +183,7 @@ public class ITNShapeFileReader extends ShapeFileReader {
                                     pillarNodes.add(lat(pillar), lng(pillar));
                                 }
 
-                                addEdge(fromTowerNodeId, toTowerNodeId, road, distance, estmCentre,
+                                addEdge(fromTowerNodeId, state, road, distance, estmCentre,
                                         pillarNodes);
                                 startTowerPnt = point;
                                 pillars.clear();
@@ -283,7 +282,7 @@ public class ITNShapeFileReader extends ShapeFileReader {
         if (speed != null) {
             way.setTag("estimated_speed", speed);
             totalSpeedsCnt++;
-            LOGGER.info(String.format("[%d] Found speed info: [%d] => %f KPH    ", totalSpeedsCnt, id, speed));
+            ////AG LOGGER.info(String.format("[%d] Found speed info: [%d] => %f KPH    ", totalSpeedsCnt, id, speed));
         }
 
         // read maxspeed filtering for 0 which for Geofabrik shapefiles appears
@@ -308,18 +307,22 @@ public class ITNShapeFileReader extends ShapeFileReader {
             // We map back to the standard convention so that tag can be dealt
             // with correctly by the flag encoder.
             String val = oneway.toString().trim().toLowerCase();
-            if (val.equals("b")) {
-                // both ways
-                val = "no";
-            } else if (val.equals("t")) {
-                // one way against the direction of digitisation
-                val = "-1";
-            } else if (val.equals("f")) {
-                // one way Forward in the direction of digitisation
-                val = "yes";
-            } else {
-                throw new RuntimeException("Unrecognised value of oneway field \"" + val
-                        + "\" found in road with OSM id " + id);
+            switch (val) {
+                case "b":
+                    // both ways
+                    val = "no";
+                    break;
+                case "t":
+                    // one way against the direction of digitisation
+                    val = "-1";
+                    break;
+                case "f":
+                    // one way Forward in the direction of digitisation
+                    val = "yes";
+                    break;
+                default:
+                    throw new RuntimeException("Unrecognised value of oneway field \"" + val
+                            + "\" found in road with OSM id " + id);
             }
 
             way.setTag("oneway", val);
@@ -327,22 +330,27 @@ public class ITNShapeFileReader extends ShapeFileReader {
             oneway = road.getAttribute(2);
             if (oneway != null) {
                 String val = oneway.toString().trim().toLowerCase();
-                if (val.equals("0")) {
-                    // both ways
-                    val = "no";
-                } else if (val.equals("-1")) {
-                    // one way against the direction of digitisation
-                    val = "-1";
-                } else if (val.equals("1")) {
-                    // one way Forward in the direction of digitisation
-                    val = "yes";
-                } else {
-                    throw new RuntimeException("Unrecognised value of oneway field \"" + val
-                            + "\" found in road with OSM id " + id);
+                String val2;
+                switch (val) {
+                    case "0":
+                        // both ways
+                        val2 = "no";
+                        break;
+                    case "-1":
+                        // one way against the direction of digitisation
+                        val2 = "-1";
+                        break;
+                    case "1":
+                        // one way Forward in the direction of digitisation
+                        val2 = "yes";
+                        break;
+                    default:
+                        throw new RuntimeException("Unrecognised value of oneway field \"" + val
+                                + "\" found in road with OSM id " + id);
                 }
 
-                LOGGER.debug("Oneway : ", val);
-                way.setTag("oneway", val);
+                LOGGER.info(String.format("Oneway [%s] => %s", val, val2));
+                way.setTag("oneway", val2);
             }
         }
 
@@ -392,16 +400,26 @@ public class ITNShapeFileReader extends ShapeFileReader {
          */
         Map<Integer, String> roadTypes = new HashMap<Integer, String>()
         {{
+//            put(3000, "motorway");
+//            put(3001, "motorway");
+//            put(3002, "motorroad");
+//            put(3004, "secondary_link");
+//            put(3006, "tertiary");
+//            put(3007, "residential");
+//            put(3008, "tertiary");
+//            put(3009, "unclassified");
+//            put(3010, "unclassified");
+//            put(3011, "unclassified");
             put(3000, "motorway");
             put(3001, "motorway");
             put(3002, "motorroad");
-            put(3004, "secondary_link");
-            put(3006, "tertiary");
-            put(3007, "residential");
-            put(3008, "tertiary");
-            put(3009, "unclassified");
-            put(3010, "unclassified");
-            put(3011, "unclassified");
+            put(3004, "residential");
+            put(3006, "residential");
+            put(3007, "tertiary");
+            put(3008, "residential");
+            put(3009, "residential");
+            put(3010, "residential");
+            put(3011, "residential");
         }};
 
         String highwayType = roadTypes.get(type);
@@ -409,7 +427,7 @@ public class ITNShapeFileReader extends ShapeFileReader {
             highwayType = "residential";
         }
 
-        LOGGER.debug("Highway Type: ", highwayType);
+        //AG LOGGER.info(String.format("[%d] Highway Type: %s", type, highwayType));
         return highwayType;
     }
 }

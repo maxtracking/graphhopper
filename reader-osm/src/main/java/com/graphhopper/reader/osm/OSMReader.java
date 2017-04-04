@@ -264,7 +264,6 @@ public class OSMReader implements DataReader {
         long relationStart = -1;
         long counter = 1;
         OSMInputFile in = null;
-        Connection conn = getConnection();
 
         speedCnt = 0;
         speedCntTotal = 0;
@@ -288,7 +287,7 @@ public class OSMReader implements DataReader {
                             LOGGER.info(nf(counter) + ", now parsing ways");
                             wayStart = counter;
                         }
-                        processWay((ReaderWay) item, conn);
+                        processWay((ReaderWay) item, null);
                         break;
                     case ReaderElement.RELATION:
                         if (relationStart < 0) {
@@ -942,126 +941,9 @@ public class OSMReader implements DataReader {
         return getClass().getSimpleName();
     }
 
+    // AG TODO: Implement DB query
     private double lookupSpeed(Connection conn, double lat, double lng) {
-//        String query = "SELECT " +
-//                "   speed," +
-//                "   ( 6371 * acos( cos( radians(?) ) * cos( radians( lat ) ) * " +
-//                "   cos( radians( lng ) - radians(?) ) + " +
-//                "   sin( radians(?) ) * " +
-//                "   sin( radians( lat ) ) ) ) " +
-//                "   AS distance " +
-//                "   FROM gh_markers " +
-//                "   HAVING distance < 2 " +
-//                "   ORDER BY distance " +
-//                "   LIMIT 1";
-//        LOGGER.info("SQL: " + query);
-
-        int ONE_DEGREE_CONSTANT;
-        int EARTH_RADIUS_CONSTANT;
-        double lon1, lon2, lat1, lat2;
-        ONE_DEGREE_CONSTANT   = 69;
-        EARTH_RADIUS_CONSTANT = 3959;
-
-        double maxDistance = 1.0;
-        lon1 = lng - maxDistance/Math.abs(Math.cos(Math.toRadians(lat))*ONE_DEGREE_CONSTANT);
-        lon2 = lng + maxDistance/Math.abs(Math.cos(Math.toRadians(lat))*ONE_DEGREE_CONSTANT);
-        lat1 = lat - (maxDistance/ONE_DEGREE_CONSTANT);
-        lat2 = lat + (maxDistance/ONE_DEGREE_CONSTANT);
-
-        String queryFmt = "SELECT m1.speed, ROUND((%d * acos(cos(radians(%.6f)) * cos(radians(m1.lat)) * " +
-                "cos(radians(m2.lng) - radians(%.6f)) +  sin(radians(%.6f)) * sin(radians(m1.lat)))) " +
-                "   , 3) AS distance " +
-                "   FROM gh_markers as m1, gh_markers as m2 " +
-                "   WHERE m1.id = m2.id AND m2.lng between %.6f and %.6f AND m1.lat between %.6f and %.6f" +
-                "   ORDER BY distance ASC" +
-                "   LIMIT 10";
-        String queryFmt2 = "SELECT speed, ROUND((%d * acos(cos(radians(%.6f)) * cos(radians(lat)) * " +
-                "cos(radians(lng) - radians(%.6f)) +  sin(radians(%.6f)) * sin(radians(lat)))) " +
-                "   , 3) AS distance " +
-                "   FROM gh_markers " +
-                "   WHERE lng between %.6f and %.6f AND lat between %.6f and %.6f" +
-                "   ORDER BY distance ASC" +
-                "   LIMIT 10";
-        String query = String.format(queryFmt, EARTH_RADIUS_CONSTANT, lat, lng, lat, lon1, lon2, lat1, lat2);
-        LOGGER.info("QUERY 1: " + query);
-
-        String query2 = String.format(queryFmt2, EARTH_RADIUS_CONSTANT, lat, lng, lat, lon1, lon2, lat1, lat2);
-        LOGGER.info("QUERY 2: " + query2);
-
-        speedCntTotal++;
-        LOGGER.info("NODES: " + speedCntTotal);
-
         return -1;
-//
-//        try {
-//            Statement st = conn.createStatement();
-//
-//            ResultSet rs = st.executeQuery(query);
-//
-//            double speed = -1;
-//            double distance  = 0;
-//
-//            speedCntTotal++;
-//
-//            if (rs.next()) {
-//                speed = rs.getDouble("speed");
-//                distance = rs.getDouble("distance");
-//                speedCnt++;
-//                LOGGER.info(String.format("[%d out of %d] [%.6f, %.6f] SPEED: %.2f. DISTANCE: %.3f",
-//                        speedCnt, speedCntTotal, lat, lng, speed, distance));
-//            }
-//            return speed;
-//        } catch (Exception e) {
-//            return -1;
-//        }
     }
 
-    private Connection getConnection() {
-        Connection conn = null;
-        try {
-            String url1 = "jdbc:mysql://greenride-api-v2.cuqltrp6td3j.eu-west-1.rds.amazonaws.com/ridematch3?verifyServerCertificate=false&useSSL=true";
-            String user = "greenride_api";
-            String password = "VTaztq5jHemf";
-
-            conn = DriverManager.getConnection(url1, user, password);
-            if (conn != null) {
-                System.out.println("Connected to the database");
-            } else {
-                System.out.println("NOT Connected to the database");
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
-        return  conn;
-    }
-
-//    private void loadSpeedData() {
-//        CSVParser parser = null;
-//        List<CSVRecord> list;
-//        try {
-//            parser = new CSVParser(new FileReader("speeds/p0709.csv" ), CSVFormat.DEFAULT);
-//            list = parser.getRecords();
-//            list.sort(new Comparator<CSVRecord>() {
-//                @Override
-//                public int compare(CSVRecord o1, CSVRecord o2) {
-//                    float lat1 = Float.parseFloat(o1.get(1));
-//                    float lat2 = Float.parseFloat(o2.get(1));
-//                    if (lat1 > lat2)
-//                        return 1;
-//                    else if (lat1 < lat2)
-//                        return -1;
-//                    else
-//                        return 0;
-//                }
-//            });
-//            for( CSVRecord row : list ) {
-//                float lng = Float.parseFloat(row.get(0));
-//                float lat = Float.parseFloat(row.get(1));
-//                float speed = Float.parseFloat(row.get(2));
-//            }
-//        } catch (IOException e) {
-//            e.printStackTrace();
-//        }
-//    }
 }

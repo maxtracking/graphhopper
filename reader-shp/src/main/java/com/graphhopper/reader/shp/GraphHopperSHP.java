@@ -35,19 +35,21 @@ public class GraphHopperSHP extends GraphHopper {
 
     private final int shapeFileType;
     private final String speedData;
+    private final String period;
 
     public GraphHopperSHP(int shapeType, CmdArgs args) {
         shapeFileType = shapeType;
         speedData = args.get("speeds.file", null);
+        period = args.get("speeds.period", null);
     }
 
     @Override
     protected DataReader createReader(GraphHopperStorage ghStorage) {
         ShapeFileReader reader;
         if (shapeFileType == 0)
-            reader = new OSMShapeFileReader(ghStorage, speedData);
+            reader = new OSMShapeFileReader(ghStorage, speedData, period);
         else
-            reader = new ITNShapeFileReader(ghStorage, speedData);
+            reader = new ITNShapeFileReader(ghStorage, speedData, period);
         for (EdgeAddedListener l : edgeAddedListeners) {
             reader.addListener(l);
         }
